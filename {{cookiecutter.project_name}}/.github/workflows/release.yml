@@ -1,0 +1,59 @@
+{% raw %}
+name: Create Release
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Prepare variables
+        id: vars
+        run: |
+          echo ::set-output name=version::$(awk '/version =/{print $NF}' pyproject.toml | sed 's/\"//g')
+          echo ::set-output name=project::$(awk '/name =/{print $NF}' pyproject.toml | sed 's/\"//g')
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2.1.6
+      - name: Install dependencies
+        run: make install
+      - name: Run check
+        run: make build
+      - uses: release-drafter/release-drafter@v5
+        id: release_notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.vars.outputs.version }}
+          release_name: Release v${{ steps.vars.outputs.version }}
+          body: ${{ steps.release_notes.outputs.body }}
+          draft: false
+          prerelease: false
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/${{ steps.vars.outputs.project }}-${{ steps.vars.outputs.version }}.tar.gz
+          asset_name: ${{ steps.vars.outputs.project }}-${{ steps.vars.outputs.version }}.tar.gz
+          asset_content_type: application/tar+gzip
+      - name: Publish a Python distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}{% endraw %}

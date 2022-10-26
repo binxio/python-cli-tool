@@ -1,0 +1,5 @@
+{
+    "project_name": "python-cli-tool",
+    "description": "TODO: Describe me",
+    "pkg_name": "{{ cookiecutter.project_name|replace('-', '_') }}"
+}
